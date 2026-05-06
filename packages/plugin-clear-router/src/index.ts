@@ -1,11 +1,17 @@
 import { Router as ClearRouterExpress } from 'clear-router/express'
+import { Router as ClearRouterFastify } from 'clear-router/fastify'
 import { Router as ClearRouterH3 } from 'clear-router/h3'
+import { Router as ClearRouterHono } from 'clear-router/hono'
 import type { CoreRouter } from 'clear-router/core'
 import type { RouteHandler as ExpressRouteHandler } from 'clear-router/types/express'
+import type { RouteHandler as FastifyRouteHandler } from 'clear-router/types/fastify'
 import type { RouteHandler as H3RouteHandler } from 'clear-router/types/h3'
+import type { RouteHandler as HonoRouteHandler } from 'clear-router/types/hono'
 import { definePlugin } from 'resora'
 
-type AnyRouteHandler = ExpressRouteHandler | H3RouteHandler
+type AnyRouteHandler = ExpressRouteHandler | FastifyRouteHandler | H3RouteHandler | HonoRouteHandler
+type ResolveContext = (ctx: unknown) => unknown
+type ResolveResult = (ctx: unknown, result: unknown, resolved: unknown) => unknown
 
 const patchedKey = Symbol.for('resora:clear-router-plugin:patched')
 
@@ -19,7 +25,9 @@ const patchedKey = Symbol.for('resora:clear-router-plugin:patched')
  */
 const patchRouter = <T extends typeof CoreRouter> (
     router: T,
-    runWithCtx: <R>(ctx: unknown, callback: () => R) => R
+    runWithCtx: <R>(ctx: unknown, callback: () => R) => R,
+    resolveContext: ResolveContext = ctx => ctx,
+    resolveResult?: ResolveResult
 ) => {
     const target = router as T & {
         [patchedKey]?: boolean
@@ -45,8 +53,13 @@ const patchRouter = <T extends typeof CoreRouter> (
         const handlerFunction = resolved.handlerFunction
 
         resolved.handlerFunction = ((ctx: unknown, req: unknown) => {
-            return runWithCtx(ctx, async () => {
-                return await Promise.resolve(handlerFunction(ctx as never, req as never))
+            return runWithCtx(resolveContext(ctx), async () => {
+                const result = handlerFunction(ctx as never, req as never)
+                const resolvedResult = await Promise.resolve(result)
+
+                return resolveResult
+                    ? resolveResult(ctx, result, resolvedResult)
+                    : resolvedResult
             })
         }) as AnyRouteHandler
 
@@ -69,6 +82,20 @@ export const clearRouterExpressPlugin = definePlugin({
 })
 
 /**
+ * Clear Router plugin for Fastify framework. Patches Clear Router's Fastify router to wrap
+ * route handlers with a Fastify reply-aware context for resora response mutations.
+ */
+export const clearRouterFastifyPlugin = definePlugin({
+    name: 'clear-router-fastify',
+    setup: ({ runWithCtx }) => {
+        patchRouter(ClearRouterFastify as never, runWithCtx, (ctx: any) => ({
+            ...ctx,
+            res: ctx.reply,
+        }))
+    },
+})
+
+/**
  * Clear Router plugin for H3 framework. Patches Clear Router's H3 router to wrap route 
  * handlers with the provided runWithCtx function, enabling context-aware execution of 
  * route handlers in H3 applications.
@@ -80,4 +107,32 @@ export const clearRouterH3Plugin = definePlugin({
     },
 })
 
-export const clearRouterPlugin = [clearRouterExpressPlugin, clearRouterH3Plugin]
+/**
+ * Clear Router plugin for Hono framework. Patches Clear Router's Hono router to wrap
+ * route handlers with the active Hono context for resora response mutations.
+ */
+export const clearRouterHonoPlugin = definePlugin({
+    name: 'clear-router-hono',
+    setup: ({ runWithCtx }) => {
+        patchRouter(ClearRouterHono as never, runWithCtx, ctx => ctx, (ctx: any, result: any, resolved) => {
+            if (
+                result &&
+                typeof result === 'object' &&
+                typeof result.then === 'function' &&
+                typeof result.json === 'function' &&
+                typeof ctx.json === 'function'
+            ) {
+                return ctx.json(resolved, ctx.__resoraStatus || ctx.res?.status || 200)
+            }
+
+            return resolved
+        })
+    },
+})
+
+export const clearRouterPlugin = [
+    clearRouterExpressPlugin,
+    clearRouterFastifyPlugin,
+    clearRouterH3Plugin,
+    clearRouterHonoPlugin,
+]

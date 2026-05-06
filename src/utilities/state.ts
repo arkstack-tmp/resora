@@ -369,6 +369,11 @@ export const extractResponseFromCtx = (ctx: unknown): any | undefined => {
 
     const obj = ctx as Record<string, any>
 
+    // Hono-style context exposes response mutation helpers directly.
+    if (typeof obj.header === 'function' && typeof obj.status === 'function') {
+        return ctx
+    }
+
     // Context with `res` property ({ req, res } from Express or H3)
     if (obj.res && typeof obj.res === 'object') {
         return obj.res

@@ -38,5 +38,7 @@ registerPlugin(clearRouterH3Plugin);
 ## Exports
 
 - `clearRouterExpressPlugin`
+- `clearRouterFastifyPlugin`
 - `clearRouterH3Plugin`
+- `clearRouterHonoPlugin`
 - `clearRouterPlugin`

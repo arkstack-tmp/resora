@@ -125,10 +125,16 @@ export class ServerResponse<
      */
     #addHeader (key: string, value: string) {
         this.headers[key] = value
-        if ('headers' in this.response) {
+        if (
+            'headers' in this.response &&
+            this.response.headers &&
+            typeof this.response.headers.set === 'function'
+        ) {
             this.response.headers.set(key, value)
         } else if ('setHeader' in this.response) {
             this.response.setHeader(key, value)
+        } else if ('header' in this.response && typeof this.response.header === 'function') {
+            this.response.header(key, value)
         }
     }
 
@@ -164,13 +170,14 @@ export class ServerResponse<
                 this.response.statusCode = this._status
             }
 
-            const sentResponse = this.response.send(this.body)
-
-            if (sentResponse && 'status' in sentResponse && typeof sentResponse.status === 'function') {
-                sentResponse.status(this._status)
-            } else if ('status' in this.response && typeof this.response.status === 'function') {
+            if ('status' in this.response && typeof this.response.status === 'function') {
                 this.response.status(this._status)
+            } else if ('code' in this.response && typeof this.response.code === 'function') {
+                this.response.code(this._status)
             }
+
+            ;(this.response as any).__resoraStatus = this._status
+            this.response.send(this.body)
 
             runPluginHook('afterSend', {
                 response: this,
@@ -185,7 +192,10 @@ export class ServerResponse<
             return this.body
         }
 
-        if ('status' in this.response && typeof this.response.status !== 'function') {
+        if ('status' in this.response && typeof this.response.status === 'function') {
+            this.response.status(this._status)
+            ;(this.response as any).__resoraStatus = this._status
+        } else if ('status' in this.response && typeof this.response.status !== 'function') {
             this.response.status = this._status
         }
 
