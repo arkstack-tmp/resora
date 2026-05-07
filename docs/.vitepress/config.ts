@@ -73,7 +73,9 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/arkstack-hq/resora' }
+      { icon: 'discord', link: 'https://discord.gg/jmQybxKQ7R' },
+      { icon: 'github', link: 'https://github.com/arkstack-hq/resora' },
+      { icon: 'npm', link: 'https://www.npmjs.com/package/resora' }
     ],
     search: {
       provider: 'local'
