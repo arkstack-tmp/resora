@@ -1,5 +1,5 @@
 import { Resource, registerPlugin, resetPluginsForTests } from 'resora'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, it } from 'vitest'
 
 import { Router as ClearRouter } from 'clear-router/hono'
 import { Controller } from 'clear-router'
