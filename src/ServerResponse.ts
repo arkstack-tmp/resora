@@ -1,8 +1,8 @@
 import { Collectible, NonCollectible, ResourceData } from './types'
-import { runPluginHook } from './plugins'
 
 import type { H3Event } from 'h3'
 import type { Response } from 'express'
+import { runPluginHook } from './plugins'
 
 /**
  * ServerResponse class to handle HTTP response construction and sending, compatible 
@@ -178,7 +178,7 @@ export class ServerResponse<
                 this.response.code(this._status)
             }
 
-            ;(this.response as any).__resoraStatus = this._status
+            (this.response as any).__resoraStatus = this._status
             this.response.send(this.body)
 
             runPluginHook('afterSend', {
@@ -195,15 +195,15 @@ export class ServerResponse<
         }
 
         if ('status' in this.response && typeof this.response.status === 'function') {
-            this.response.status(this._status)
-            ;(this.response as any).__resoraStatus = this._status
+            this.response.status(this._status);
+            (this.response as any).__resoraStatus = this._status
         } else if ('status' in this.response && typeof this.response.status !== 'function') {
             this.response.status = this._status
         }
 
-        if ('body' in this.response) {
-            ;(this.response as any).body = this.body
-            ;(this.response as any).__resoraStatus = this._status
+        if ('body' in this.response && typeof this.response.body !== 'function') {
+            (this.response as any).body = this.body;
+            (this.response as any).__resoraStatus = this._status
         }
 
         runPluginHook('afterSend', {

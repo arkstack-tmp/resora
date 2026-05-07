@@ -41,4 +41,5 @@ registerPlugin(clearRouterH3Plugin);
 - `clearRouterFastifyPlugin`
 - `clearRouterH3Plugin`
 - `clearRouterHonoPlugin`
+- `clearRouterKoaPlugin`
 - `clearRouterPlugin`

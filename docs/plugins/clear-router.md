@@ -10,7 +10,7 @@ Use it when your application routes are registered through clear-router and you 
 pnpm add @resora/plugin-clear-router clear-router
 ```
 
-Install the HTTP framework adapter you use with clear-router, such as Express, Fastify, Hono, or H3.
+Install the HTTP framework adapter you use with clear-router, such as Express, Fastify, Hono, H3, or Koa.
 
 ## Register
 
@@ -29,6 +29,7 @@ Available exports:
 - `clearRouterFastifyPlugin`
 - `clearRouterH3Plugin`
 - `clearRouterHonoPlugin`
+- `clearRouterKoaPlugin`
 - `clearRouterPlugin`
 
 `clearRouterPlugin` registers all available clear-router adapter bridges.
@@ -111,6 +112,29 @@ Router.get('/users/1', () => {
 const router = Router.apply(app);
 ```
 
+## Koa
+
+```ts
+import Koa from 'koa';
+import KoaRouter from '@koa/router';
+import { Router } from 'clear-router/koa';
+import { Resource, registerPlugin } from 'resora';
+import { clearRouterKoaPlugin } from '@resora/plugin-clear-router';
+
+registerPlugin(clearRouterKoaPlugin);
+
+const app = new Koa();
+const koaRouter = new KoaRouter();
+
+Router.get('/users/1', () => {
+  return new Resource({ id: 1, name: 'Ada' });
+});
+
+Router.apply(koaRouter);
+app.use(koaRouter.routes());
+app.use(koaRouter.allowedMethods());
+```
+
 ## Controllers
 
 The plugin also works with clear-router controller actions.
@@ -149,4 +173,4 @@ class UserResource extends Resource {
 
 - The plugin is opt-in and only affects routes after registration.
 - Register the adapter plugin before applying clear-router routes.
-- clear-router `2.4.0` or newer is recommended so direct returns are normalized consistently across adapters.
+- clear-router `2.5.0` or newer is recommended so direct returns are normalized consistently across adapters, including Koa.
