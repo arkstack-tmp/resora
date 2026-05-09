@@ -1,6 +1,6 @@
 {
     "name": "@resora/plugin-clear-router",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "description": "Opt-in bridge plugin for using resora return values inside clear-router handlers.",
     "publishConfig": {
         "access": "public"
@@ -13,6 +13,16 @@
         "plugin",
         "typescript"
     ],
+    "homepage": "https://arkstack-hq.github.io/resora/plugins/clear-router",
+    "bugs": {
+        "url": "https://github.com/arkstack-hq/resora/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/arkstack-hq/resora.git",
+        "directory": "packages/plugin-clear-router"
+    },
+    "readme": "README.md",
     "license": "MIT",
     "type": "module",
     "main": "./dist/index.cjs",
