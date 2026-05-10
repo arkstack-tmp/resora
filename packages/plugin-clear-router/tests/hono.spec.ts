@@ -14,12 +14,7 @@ describe('@resora/plugin-clear-router hono', () => {
         resetPluginsForTests()
         registerPlugin(clearRouterHonoPlugin)
 
-        ClearRouter.routes = []
-        ClearRouter.prefix = ''
-        ClearRouter.groupMiddlewares = []
-        ClearRouter.globalMiddlewares = []
-        ClearRouter.routesByPathMethod = {}
-        ClearRouter.routesByMethod = {}
+        ClearRouter.reset()
 
         app = new Hono()
     })

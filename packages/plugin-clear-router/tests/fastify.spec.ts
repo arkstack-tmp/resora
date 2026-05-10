@@ -14,12 +14,7 @@ describe('@resora/plugin-clear-router fastify', () => {
         resetPluginsForTests()
         registerPlugin(clearRouterFastifyPlugin)
 
-        ClearRouter.routes = []
-        ClearRouter.prefix = ''
-        ClearRouter.groupMiddlewares = []
-        ClearRouter.globalMiddlewares = []
-        ClearRouter.routesByPathMethod = {}
-        ClearRouter.routesByMethod = {}
+        ClearRouter.reset()
 
         app = fastify()
     })

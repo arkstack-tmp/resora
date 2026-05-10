@@ -1,10 +1,10 @@
 import { Resource, registerPlugin, resetPluginsForTests } from 'resora'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import Koa from 'koa'
-import KoaRouter from '@koa/router'
 import { Router as ClearRouter } from 'clear-router/koa'
 import { Controller } from 'clear-router'
+import Koa from 'koa'
+import KoaRouter from '@koa/router'
 import { clearRouterKoaPlugin } from '../src'
 import request from 'parasito'
 
@@ -16,12 +16,7 @@ describe('@resora/plugin-clear-router koa', () => {
         resetPluginsForTests()
         registerPlugin(clearRouterKoaPlugin)
 
-        ClearRouter.routes = []
-        ClearRouter.prefix = ''
-        ClearRouter.groupMiddlewares = []
-        ClearRouter.globalMiddlewares = []
-        ClearRouter.routesByPathMethod = {}
-        ClearRouter.routesByMethod = {}
+        ClearRouter.reset()
 
         app = new Koa()
         router = new KoaRouter()

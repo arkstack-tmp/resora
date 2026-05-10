@@ -14,12 +14,7 @@ describe('@resora/plugin-clear-router h3', () => {
         resetPluginsForTests()
         registerPlugin(clearRouterH3Plugin)
 
-        ClearRouter.routes = []
-        ClearRouter.prefix = ''
-        ClearRouter.groupMiddlewares = []
-        ClearRouter.globalMiddlewares = []
-        ClearRouter.routesByPathMethod = {}
-        ClearRouter.routesByMethod = {}
+        ClearRouter.reset()
 
         app = new H3()
     })
