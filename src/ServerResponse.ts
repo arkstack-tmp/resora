@@ -19,6 +19,7 @@ export class ServerResponse<
     | ResourceData = any,
 > {
     private _status: number = 200
+    private sent = false
     headers: Record<string, string> = {}
 
     constructor(response: H3Event['res'], body: R)
@@ -147,6 +148,10 @@ export class ServerResponse<
      * @returns The dispatched response body
      */
     send (body?: R) {
+        if (this.sent || this.#rawResponseSent()) {
+            return this.body
+        }
+
         if (typeof body !== 'undefined') {
             this.body = body
         }
@@ -180,6 +185,7 @@ export class ServerResponse<
 
             (this.response as any).__resoraStatus = this._status
             this.response.send(this.body)
+            this.sent = true
 
             runPluginHook('afterSend', {
                 response: this,
@@ -206,6 +212,8 @@ export class ServerResponse<
             (this.response as any).__resoraStatus = this._status
         }
 
+        this.sent = true
+
         runPluginHook('afterSend', {
             response: this,
             rawResponse: this.response,
@@ -217,6 +225,12 @@ export class ServerResponse<
         })
 
         return this.body
+    }
+
+    #rawResponseSent () {
+        const raw = this.response as any
+
+        return Boolean(raw?.headersSent || raw?.sent || raw?.raw?.headersSent)
     }
 
     /**

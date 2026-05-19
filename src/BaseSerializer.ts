@@ -200,8 +200,16 @@ export abstract class BaseSerializer<TResource = any> {
      * @param body
      */
     protected sendRawResponseBody<TBody> (raw: unknown, body: TBody): void {
-        if (raw && typeof (raw as any).send === 'function') {
-            (raw as any).send(body)
+        const response = raw as any
+
+        if (
+            response &&
+            typeof response.send === 'function' &&
+            !response.headersSent &&
+            !response.sent &&
+            !response.raw?.headersSent
+        ) {
+            response.send(body)
         }
     }
 

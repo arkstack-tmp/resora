@@ -97,4 +97,30 @@ describe('@resora/plugin-clear-router express', () => {
             },
         })
     })
+
+    it('does not double-send async controller responses bound with .response()', async () => {
+        class UserController extends Controller {
+            async index () {
+                return new Resource({ id: 4, name: 'Katherine' })
+                    .additional({ message: 'OK' })
+                    .response()
+                    .setStatusCode(202)
+            }
+        }
+
+        ClearRouter.get('/async-users', [UserController, 'index'])
+
+        await setup()
+
+        const response = await request(app).get('/async-users')
+
+        expect(response.status).toBe(202)
+        expect(response.body).toEqual({
+            data: {
+                id: 4,
+                name: 'Katherine',
+            },
+            message: 'OK',
+        })
+    })
 })
