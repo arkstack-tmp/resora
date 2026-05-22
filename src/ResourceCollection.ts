@@ -137,7 +137,7 @@ export class ResourceCollection<
   /**
    * Get the original resource data
    */
-  data (_ctx?: unknown) {
+  data (_ctx?: any): any {
     return this.getSourceData()
   }
 
@@ -232,6 +232,72 @@ export class ResourceCollection<
     return factory || !wrap ? undefined : rootKey
   }
 
+  private serializeCollectionData (items: ResourceData[]) {
+    let data = normalizeSerializableData(items) as ResourceData[]
+
+    data = sanitizeConditionalAttributes(data) as ResourceData[]
+
+    const paginationExtras = !Array.isArray(this.resource)
+      ? buildPaginationExtras(this.resource)
+      : {}
+
+    const { metaKey } = getPaginationExtraKeys()
+    const configuredMeta = metaKey ? paginationExtras[metaKey] : undefined
+    if (metaKey) {
+      delete paginationExtras[metaKey]
+    }
+
+    // Apply case transformation if configured
+    const caseStyle = this.resolveSerializerCaseStyle(
+      this.constructor as typeof ResourceCollection,
+      this.resolveCollectsConfig()
+    )
+    if (caseStyle) {
+      const transformer = getCaseTransformer(caseStyle)
+      data = transformKeys(data, transformer) as CollectionBody<R>['data']
+    }
+
+    const customMeta = this.resolveMergedMeta(ResourceCollection.prototype.with)
+
+    const { wrap, rootKey, factory } = this.resolveResponseStructure()
+    this.body = buildResponseEnvelope({
+      payload: data,
+      meta: configuredMeta,
+      metaKey,
+      wrap,
+      rootKey,
+      factory,
+      context: {
+        type: 'collection',
+        resource: this.resource,
+      },
+    }) as CollectionBody<R>
+
+    this.body = appendRootProperties(
+      this.body,
+      {
+        ...paginationExtras,
+        ...(customMeta || {}),
+      },
+      rootKey
+    ) as CollectionBody<R>
+    this.body = this.applySerializePlugins(this.body) as CollectionBody<R>
+  }
+
+  private resolveCollectionDataForSerialization (items: ResourceData[], ctx: unknown) {
+    if (this.collects && this.data === ResourceCollection.prototype.data) {
+      const collected = items.map((item: any) => new this.collects!(item).data(ctx))
+
+      if (collected.some(item => this.isPromiseLike(item))) {
+        return Promise.all(collected)
+      }
+
+      return collected
+    }
+
+    return items
+  }
+
   /**
    * Convert resource to JSON response format
    * 
@@ -242,61 +308,28 @@ export class ResourceCollection<
       this.called.json = true
 
       const ctx = this.resolveSerializationContext()
-      let data: ResourceData[] = this.data(ctx) as never
+      const data = this.data(ctx) as ResourceData[] | PromiseLike<ResourceData[]>
 
-      if (this.collects && this.data === ResourceCollection.prototype.data) {
-        data = data.map((item: any) => new this.collects!(item).data(ctx))
+      const serialize = (items: ResourceData[]) => {
+        const resolvedData = this.resolveCollectionDataForSerialization(items, ctx)
+
+        if (this.isPromiseLike<ResourceData[]>(resolvedData)) {
+          return resolvedData.then(resolved => {
+            this.serializeCollectionData(resolved)
+          })
+        }
+
+        this.serializeCollectionData(resolvedData)
       }
 
-      data = normalizeSerializableData(data) as ResourceData[]
-
-      data = sanitizeConditionalAttributes(data) as ResourceData[]
-
-      const paginationExtras = !Array.isArray(this.resource)
-        ? buildPaginationExtras(this.resource)
-        : {}
-
-      const { metaKey } = getPaginationExtraKeys()
-      const configuredMeta = metaKey ? paginationExtras[metaKey] : undefined
-      if (metaKey) {
-        delete paginationExtras[metaKey]
+      if (this.isPromiseLike<ResourceData[]>(data)) {
+        this.serializationPromise = Promise.resolve(data).then(serialize)
+      } else {
+        const result = serialize(data)
+        if (this.isPromiseLike(result)) {
+          this.serializationPromise = Promise.resolve(result)
+        }
       }
-
-      // Apply case transformation if configured
-      const caseStyle = this.resolveSerializerCaseStyle(
-        this.constructor as typeof ResourceCollection,
-        this.resolveCollectsConfig()
-      )
-      if (caseStyle) {
-        const transformer = getCaseTransformer(caseStyle)
-        data = transformKeys(data, transformer) as CollectionBody<R>['data']
-      }
-
-      const customMeta = this.resolveMergedMeta(ResourceCollection.prototype.with)
-
-      const { wrap, rootKey, factory } = this.resolveResponseStructure()
-      this.body = buildResponseEnvelope({
-        payload: data,
-        meta: configuredMeta,
-        metaKey,
-        wrap,
-        rootKey,
-        factory,
-        context: {
-          type: 'collection',
-          resource: this.resource,
-        },
-      }) as CollectionBody<R>
-
-      this.body = appendRootProperties(
-        this.body,
-        {
-          ...paginationExtras,
-          ...(customMeta || {}),
-        },
-        rootKey
-      ) as CollectionBody<R>
-      this.body = this.applySerializePlugins(this.body) as CollectionBody<R>
     }
 
     return this

@@ -47,6 +47,7 @@ export abstract class BaseSerializer<TResource = any> {
     protected static ctx?: Response | H3Event | Record<string, any>
     protected instanceConfig?: ResourceLevelConfig
     protected additionalMeta?: MetaData
+    protected serializationPromise?: Promise<void>
     protected called: {
         json?: boolean
         data?: boolean
@@ -200,6 +201,16 @@ export abstract class BaseSerializer<TResource = any> {
         return getCtx() ?? (this.constructor as typeof BaseSerializer).ctx
     }
 
+    protected isPromiseLike<T = any> (value: unknown): value is PromiseLike<T> {
+        return !!value
+            && (typeof value === 'object' || typeof value === 'function')
+            && typeof (value as PromiseLike<T>).then === 'function'
+    }
+
+    protected waitForSerialization (): Promise<void> {
+        return this.serializationPromise ?? Promise.resolve()
+    }
+
     /**
      * Dispatch a body to a raw response object when it exposes a send() transport method.
      *
@@ -326,40 +337,42 @@ export abstract class BaseSerializer<TResource = any> {
         this.called.then = true
         input.ensureJson()
 
-        const initialBody = input.body()
-        let response: TServerResponse | undefined
+        return this.waitForSerialization()
+            .then(() => {
+                const initialBody = input.body()
+                let response: TServerResponse | undefined
 
-        if (typeof input.rawResponse !== 'undefined') {
-            response = input.createServerResponse(input.rawResponse, initialBody)
+                if (typeof input.rawResponse !== 'undefined') {
+                    response = input.createServerResponse(input.rawResponse, initialBody)
 
-            this.called.withResponse = true
-            input.callWithResponse(response, input.rawResponse)
-        } else {
-            this.called.withResponse = true
-            input.callWithResponse()
-        }
+                    this.called.withResponse = true
+                    input.callWithResponse(response, input.rawResponse)
+                } else {
+                    this.called.withResponse = true
+                    input.callWithResponse()
+                }
 
-        const resolvedBody = input.body()
+                const resolvedBody = input.body()
 
-        if (typeof (response as any)?.setBody === 'function') {
-            (response as any).setBody(resolvedBody)
-        }
+                if (typeof (response as any)?.setBody === 'function') {
+                    (response as any).setBody(resolvedBody)
+                }
 
-        const dispatchedBody = this.applyResponsePlugins({
-            body: resolvedBody,
-            rawResponse: input.rawResponse,
-            response,
-        })
+                const dispatchedBody = this.applyResponsePlugins({
+                    body: resolvedBody,
+                    rawResponse: input.rawResponse,
+                    response,
+                })
 
-        const resolved = Promise.resolve(dispatchedBody).then(input.onfulfilled, input.onrejected)
+                if (typeof (response as any)?.send === 'function') {
+                    (response as any).send(dispatchedBody)
+                } else if (typeof input.rawResponse !== 'undefined' && input.sendRawResponse) {
+                    input.sendRawResponse(input.rawResponse, dispatchedBody)
+                }
 
-        if (typeof (response as any)?.send === 'function') {
-            (response as any).send(dispatchedBody)
-        } else if (typeof input.rawResponse !== 'undefined' && input.sendRawResponse) {
-            input.sendRawResponse(input.rawResponse, dispatchedBody)
-        }
-
-        return resolved
+                return dispatchedBody
+            })
+            .then(input.onfulfilled, input.onrejected)
     }
 
     /**

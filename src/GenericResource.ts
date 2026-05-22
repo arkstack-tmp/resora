@@ -127,7 +127,7 @@ export class GenericResource<
   /**
    * Get the original resource data
    */
-  data (_ctx?: unknown): R {
+  data (_ctx?: any): any {
     return this.resource
   }
 
@@ -214,23 +214,11 @@ export class GenericResource<
     return factory || !wrap ? undefined : rootKey
   }
 
-  /**
-   * Convert resource to JSON response format
-   * 
-   * @returns 
-   */
-  json () {
-    if (!this.called.json) {
-      this.called.json = true
+  private serializeGenericResource (resource: unknown, ctx: unknown) {
+    let data: any = normalizeSerializableData(resource)
 
-      const ctx = this.resolveSerializationContext()
-      const resource = this.data(ctx)
-
-      let data: any = normalizeSerializableData(resource)
-
-      if (Array.isArray(data) && this.collects) {
-        data = data.map(item => new this.collects!(item).data(ctx))
-      }
+    const serialize = (resolvedData: any) => {
+      data = resolvedData
 
       if (!Array.isArray(data) && data && typeof data.data !== 'undefined') {
         data = data.data
@@ -280,6 +268,47 @@ export class GenericResource<
         rootKey
       ) as GenericBody<R>
       this.body = this.applySerializePlugins(this.body) as GenericBody<R>
+    }
+
+    if (Array.isArray(data) && this.collects) {
+      const collected = data.map(item => new this.collects!(item).data(ctx))
+
+      if (collected.some(item => this.isPromiseLike(item))) {
+        return Promise.all(collected).then(serialize)
+      }
+
+      data = collected
+    }
+
+    serialize(data)
+  }
+
+  /**
+   * Convert resource to JSON response format
+   * 
+   * @returns 
+   */
+  json () {
+    if (!this.called.json) {
+      this.called.json = true
+
+      const ctx = this.resolveSerializationContext()
+      const resource = this.data(ctx)
+
+      if (this.isPromiseLike(resource)) {
+        this.serializationPromise = Promise.resolve(resource).then(resolved => {
+          const result = this.serializeGenericResource(resolved, ctx)
+
+          if (this.isPromiseLike(result)) {
+            return result
+          }
+        })
+      } else {
+        const result = this.serializeGenericResource(resource, ctx)
+        if (this.isPromiseLike(result)) {
+          this.serializationPromise = Promise.resolve(result)
+        }
+      }
     }
 
     // if (this.collects) console.log(this.body, this.constructor.name, this.collects.name)

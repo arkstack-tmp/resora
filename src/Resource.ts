@@ -115,7 +115,7 @@ export class Resource<R extends ResourceData | NonCollectible = ResourceData> ex
   /**
    * Get the original resource data
    */
-  data (_ctx?: unknown) {
+  data (_ctx?: any): any {
     return this.toObject()
   }
 
@@ -168,6 +168,40 @@ export class Resource<R extends ResourceData | NonCollectible = ResourceData> ex
     return factory || !wrap ? undefined : rootKey
   }
 
+  private serializeResource (resource: unknown) {
+    let data: any = normalizeSerializableData(resource)
+
+    if (!Array.isArray(data) && data && typeof data.data !== 'undefined') {
+      data = data.data
+    }
+
+    data = sanitizeConditionalAttributes(data)
+
+    // Apply case transformation if configured
+    const caseStyle = this.resolveSerializerCaseStyle(this.constructor as typeof Resource)
+    if (caseStyle) {
+      const transformer = getCaseTransformer(caseStyle)
+      data = transformKeys(data, transformer)
+    }
+
+    const customMeta = this.resolveMergedMeta(Resource.prototype.with)
+
+    const { wrap, rootKey, factory } = this.resolveResponseStructure()
+    this.body = buildResponseEnvelope({
+      payload: data,
+      wrap,
+      rootKey,
+      factory,
+      context: {
+        type: 'resource',
+        resource: this.resource,
+      },
+    }) as ResourceBody<R>
+
+    this.body = appendRootProperties(this.body, customMeta, rootKey) as ResourceBody<R>
+    this.body = this.applySerializePlugins(this.body) as ResourceBody<R>
+  }
+
   /**
    * Convert resource to JSON response format
    * 
@@ -180,37 +214,13 @@ export class Resource<R extends ResourceData | NonCollectible = ResourceData> ex
       const ctx = this.resolveSerializationContext()
       const resource = this.data(ctx)
 
-      let data: any = normalizeSerializableData(resource)
-
-      if (!Array.isArray(data) && data && typeof data.data !== 'undefined') {
-        data = data.data
+      if (this.isPromiseLike(resource)) {
+        this.serializationPromise = Promise.resolve(resource).then(resolved => {
+          this.serializeResource(resolved)
+        })
+      } else {
+        this.serializeResource(resource)
       }
-
-      data = sanitizeConditionalAttributes(data)
-
-      // Apply case transformation if configured
-      const caseStyle = this.resolveSerializerCaseStyle(this.constructor as typeof Resource)
-      if (caseStyle) {
-        const transformer = getCaseTransformer(caseStyle)
-        data = transformKeys(data, transformer)
-      }
-
-      const customMeta = this.resolveMergedMeta(Resource.prototype.with)
-
-      const { wrap, rootKey, factory } = this.resolveResponseStructure()
-      this.body = buildResponseEnvelope({
-        payload: data,
-        wrap,
-        rootKey,
-        factory,
-        context: {
-          type: 'resource',
-          resource: this.resource,
-        },
-      }) as ResourceBody<R>
-
-      this.body = appendRootProperties(this.body, customMeta, rootKey) as ResourceBody<R>
-      this.body = this.applySerializePlugins(this.body) as ResourceBody<R>
     }
 
     return this

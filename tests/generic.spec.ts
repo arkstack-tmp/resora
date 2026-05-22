@@ -45,6 +45,29 @@ describe('Generic Core', () => {
         expect(jsonResource.data().name).toBe('Updated Resource')
     })
 
+    it('should support async data methods during serialization', async () => {
+        class CustomGenericResource extends GenericResource {
+            async data ({ req }: any) {
+                await Promise.resolve()
+
+                return {
+                    id: this.id,
+                    publicData: req.publicData,
+                }
+            }
+        }
+
+        await expect(new CustomGenericResource({ id: 1 }, {
+            req: { publicData: 'async generic' },
+            res: {},
+        }).json()).resolves.toEqual({
+            data: {
+                id: 1,
+                publicData: 'async generic',
+            },
+        })
+    })
+
     it('should serialize Arkorm-like models without manual mapping', () => {
         const model = new TestArkormModel({ id: 1, name: 'Jane' })
         const resource = new GenericResource(model)

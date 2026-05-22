@@ -86,6 +86,43 @@ describe('Core', () => {
         })
     })
 
+    it('should support async data methods during serialization', async () => {
+        class CustomResource extends Resource {
+            async data ({ req }: any) {
+                await Promise.resolve()
+
+                return {
+                    id: this.id,
+                    publicData: req.publicData,
+                }
+            }
+        }
+
+        const ctx = {
+            req: { publicData: 'async' },
+            res: {},
+        }
+
+        await expect(new CustomResource({ id: 1 }, ctx).json()).resolves.toEqual({
+            data: {
+                id: 1,
+                publicData: 'async',
+            },
+        })
+    })
+
+    it('should reject when an async data method rejects', async () => {
+        class CustomResource extends Resource {
+            async data () {
+                await Promise.resolve()
+
+                throw new Error('No data')
+            }
+        }
+
+        await expect(new CustomResource({ id: 1 }).json()).rejects.toThrow('No data')
+    })
+
     it('should pass global context to the data method during serialization', () => {
         class CustomResource extends Resource {
             data ({ req }: any) {
@@ -225,6 +262,33 @@ describe('Extending Resources', () => {
                 data: [{
                     id: 1,
                     publicData: 'collection',
+                }],
+            })
+    })
+
+    it('should support async collected resource data methods', async () => {
+        class CustomResource extends Resource {
+            async data ({ req }: any) {
+                await Promise.resolve()
+
+                return {
+                    id: this.id,
+                    publicData: req.publicData,
+                }
+            }
+        }
+
+        const ctx = {
+            req: { publicData: 'async collection' },
+            res: {},
+        }
+
+        await expect(new ResourceCollection([{ id: 1 }], ctx)
+            .setCollects(CustomResource)
+            .json()).resolves.toEqual({
+                data: [{
+                    id: 1,
+                    publicData: 'async collection',
                 }],
             })
     })
