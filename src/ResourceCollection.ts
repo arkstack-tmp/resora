@@ -284,15 +284,15 @@ export class ResourceCollection<
     this.body = this.applySerializePlugins(this.body) as CollectionBody<R>
   }
 
-  private resolveCollectionDataForSerialization (items: ResourceData[], ctx: unknown) {
+  private resolveCollectionDataForSerialization (items: ResourceData[], ctx: unknown): ResourceData[] | Promise<ResourceData[]> {
     if (this.collects && this.data === ResourceCollection.prototype.data) {
-      const collected = items.map((item: any) => new this.collects!(item).data(ctx))
+      const collected = items.map((item: any) => new this.collects!(item).data(ctx)) as Array<ResourceData | PromiseLike<ResourceData>>
 
       if (collected.some(item => this.isPromiseLike(item))) {
         return Promise.all(collected)
       }
 
-      return collected
+      return collected as ResourceData[]
     }
 
     return items
@@ -319,7 +319,7 @@ export class ResourceCollection<
           })
         }
 
-        this.serializeCollectionData(resolvedData)
+        this.serializeCollectionData(resolvedData as ResourceData[])
       }
 
       if (this.isPromiseLike<ResourceData[]>(data)) {
